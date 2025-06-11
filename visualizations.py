@@ -59,7 +59,8 @@ def get_map(var, year1, year2, unit_col):
 
 
 @st.cache_resource
-def get_line_graph(df, var, full_name):
+def get_line_graph(full_name, var):
+    df = be.get_census_data(full_name, var, True)
     df["Year"] = df["Year"].astype(int)
 
     # Create the figure and axis

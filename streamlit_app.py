@@ -32,13 +32,11 @@ graph_tab, table_tab, map_tab, about_tab = st.tabs(
 )
 
 with graph_tab:
-    df = be.get_census_data(full_name, var, True)
-
     line_graph, swarm_plot = st.columns(2)
 
     with line_graph:
         # Time Series graph data for this county, for the given variable
-        fig = viz.get_line_graph(df, var, full_name)
+        fig = viz.get_line_graph(full_name, var)
         st.pyplot(fig)
         st.write("*Dashed line indicates that data is missing for 2020.*")
 
