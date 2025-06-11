@@ -129,7 +129,9 @@ def get_swarm_dot_size(var):
 
 
 @st.cache_resource
-def get_swarmplot(df, var, year1, year2, full_name):
+def get_swarmplot(var, year1, year2, full_name):
+    df = be.get_ranking_df(var, year1, year2, False)
+
     fig, ax = plt.subplots()
 
     # Define colors for better contrast

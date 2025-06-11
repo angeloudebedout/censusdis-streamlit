@@ -42,8 +42,7 @@ with graph_tab:
 
     with swarm_plot:
         # How does the change this county experienced compare to the change in all other counties?
-        ranking_df = be.get_ranking_df(var, YEAR1, YEAR2, False)
-        fig = viz.get_swarmplot(ranking_df, var, YEAR1, YEAR2, full_name)
+        fig = viz.get_swarmplot(var, YEAR1, YEAR2, full_name)
         st.pyplot(fig)
         text = open("text/swarmplot.md").read().format(var=var)
         st.write(f"{text}")
