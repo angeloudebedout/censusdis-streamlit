@@ -35,7 +35,7 @@ def get_census_data(full_name, var, add_2020):
     return ret
 
 
-def get_ranking_df(column, year1, year2, unit_col, include_fips):
+def get_ranking_df(column, year1, year2, include_fips):
     df2 = df.copy()  # We don't want to modify the global variable
 
     # Select just the rows and columns we need
@@ -47,7 +47,7 @@ def get_ranking_df(column, year1, year2, unit_col, include_fips):
     df2["Change"] = df2[year2] - df2[year1]
     df2["Percent Change"] = (df2[year2] - df2[year1]) / df2[year1] * 100
     df2["Percent Change"] = df2["Percent Change"].round(1)
-    df2 = df2.sort_values(unit_col)
+    df2 = df2.sort_values("Percent Change")
 
     # Drop Columns with Infinite percent change (first or last year has 0)
     df2 = df2.replace([np.inf, -np.inf], np.nan).dropna()

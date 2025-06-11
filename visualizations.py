@@ -8,8 +8,8 @@ import streamlit as st
 
 
 @st.cache_resource
-def get_map(var, year1, year2, unit_col):
-    df = be.get_ranking_df(var, year1, year2, unit_col, True)
+def get_map(var, year1, year2):
+    df = be.get_ranking_df(var, year1, year2, True)
 
     # Because we are showing percent change, it helps to use a divergent scale
     # and fix the middle color at 0. Plotly can do this for us, but by default
@@ -22,8 +22,8 @@ def get_map(var, year1, year2, unit_col):
     # yellow is 0, red is negative) and always pins yellow at 0. Actually using
     # the app myself, I find this to make the map feature most useful: it
     # highlights outliers and values around 0.
-    cmin = df[unit_col].min()  # -10.2
-    cmax = df[unit_col].max()  # 36.4
+    cmin = df["Percent Change"].min()  # -10.2
+    cmax = df["Percent Change"].max()  # 36.4
     zero_norm = abs(cmin) / (cmax - cmin)  # Determine normalized position for 0
     colorscale = [
         [0.0, "#d95f02"],  # Orange at the minimum (-10.2)
@@ -40,13 +40,13 @@ def get_map(var, year1, year2, unit_col):
         range_color=(cmin, cmax),
         scope="usa",
         hover_name="Full Name",
-        hover_data={"FIPS": False, unit_col: True},
-        labels={"Percent Change": unit_col, "FIPS": "NAME"},
+        hover_data={"FIPS": False, "Percent Change": True},
+        labels={"Percent Change": "Percent Change", "FIPS": "NAME"},
     )
 
     # Force ticks to show min, 0 and max as labels.
     fig.update_layout(
-        title_text=f"{unit_col} of {var} between {year1} and {year2}",
+        title_text=f"Percent Change of {var} between {year1} and {year2}",
         coloraxis_colorbar=dict(
             title="Percent Change",
             tickmode="array",
@@ -129,7 +129,7 @@ def get_swarm_dot_size(var):
 
 
 @st.cache_resource
-def get_swarmplot(df, var, year1, year2, full_name, unit_col):
+def get_swarmplot(df, var, year1, year2, full_name):
     fig, ax = plt.subplots()
 
     # Define colors for better contrast
@@ -146,13 +146,17 @@ def get_swarmplot(df, var, year1, year2, full_name, unit_col):
 
     # Plot swarm plot with adjusted alpha for non-highlighted counties
     sns.swarmplot(
-        x=df_black[unit_col], color=normal_color, size=size, alpha=normal_alpha, ax=ax
+        x=df_black["Percent Change"],
+        color=normal_color,
+        size=size,
+        alpha=normal_alpha,
+        ax=ax,
     )
 
     # If the highlighted county exists, plot it separately with enhanced visibility
     if not df_highlight.empty:
         sns.swarmplot(
-            x=df_highlight[unit_col], color=highlight_color, size=8, ax=ax
+            x=df_highlight["Percent Change"], color=highlight_color, size=8, ax=ax
         )  # Larger size and vivid color
 
         # Manually set the legend with the correct color
@@ -167,8 +171,8 @@ def get_swarmplot(df, var, year1, year2, full_name, unit_col):
         )
         ax.legend(handles=[legend_patch])  # Only add legend if the county exists
 
-    ax.set_title(f"{unit_col} of {var}\nAll Counties, {year1} to {year2}")
-    ax.set_xlabel(unit_col)
+    ax.set_title(f"Percent Change of {var}\nAll Counties, {year1} to {year2}")
+    ax.set_xlabel("Percent Change")
 
     # Apply comma formatting to the x-axis
     ax.xaxis.set_major_formatter(ticker.StrMethodFormatter("{x:,.0f}"))

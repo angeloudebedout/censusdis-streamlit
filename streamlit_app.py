@@ -19,10 +19,10 @@ with county_col:
 with demographic_col:
     var = st.selectbox("Demographic:", cv.census_dropdown_values)
 
-# At one point the app let people toggle between viewing Count data vs. Percent Change data. It also let users
-# change which years they used to compare when looking at percent change calculations.
-# The graphing functions still maintain that flexibility. But I now hard-code these variables.
-unit_col = "Percent Change"
+# At one point the app let people toggle between viewing Count data vs. Percent
+# Change data. It also let users change which years they compared. While I might
+# want to add that functionality back in at some point, right now each graph
+# hard-codes what we compare, and I also hard-code the years we compare.
 YEAR1 = "2019"
 YEAR2 = "2023"
 
@@ -42,20 +42,18 @@ with graph_tab:
 
     with swarm_plot:
         # How does the change this county experienced compare to the change in all other counties?
-        ranking_df = be.get_ranking_df(var, YEAR1, YEAR2, unit_col, False)
-        fig = viz.get_swarmplot(ranking_df, var, YEAR1, YEAR2, full_name, unit_col)
+        ranking_df = be.get_ranking_df(var, YEAR1, YEAR2, False)
+        fig = viz.get_swarmplot(ranking_df, var, YEAR1, YEAR2, full_name)
         st.pyplot(fig)
         text = open("text/swarmplot.md").read().format(var=var)
         st.write(f"{text}")
 
 with table_tab:
-    ranking_df = be.get_ranking_df(var, YEAR1, YEAR2, unit_col, False)
+    ranking_df = be.get_ranking_df(var, YEAR1, YEAR2, False)
     ranking_text = be.get_ranking_text(full_name, var, ranking_df)
 
     # The styling here are things like the gradient on the column the user selected
-    ranking_df = ranking_df.style.pipe(
-        uih.apply_styles, full_name, YEAR1, YEAR2, unit_col
-    )
+    ranking_df = ranking_df.style.pipe(uih.apply_styles, full_name, YEAR1, YEAR2)
 
     text = (
         open("text/table.md")
@@ -69,7 +67,7 @@ with table_tab:
 with map_tab:
     text = open("text/map.md").read().format(var=var)
     st.write(text)
-    fig = viz.get_map(var, YEAR1, YEAR2, unit_col)
+    fig = viz.get_map(var, YEAR1, YEAR2)
     st.plotly_chart(fig)
 
 with about_tab:
