@@ -1,34 +1,50 @@
-import backend as be
+# visualizations.py
 
+import backend as be
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import plotly.express as px
-import seaborn as sns
 import streamlit as st
+import seaborn as sns
+
+from colors import SEX, RACE, AGE, HISPANIC
+
+# Diverging color constants
+NEG_COLOR = "#d95f02"     # Red/orange for negative changes
+ZERO_COLOR = "#ffffbf"    # Neutral at zero
+POS_COLOR = "#1b5eab"     # Blue for positive changes
+
+
+def get_color_map(demographic: str) -> dict:
+    """
+    Return a mapping dict for categorical demographics (SEX, RACE, AGE, HISPANIC).
+    """
+    return {
+        "SEX": SEX,
+        "RACE": RACE,
+        "AGE": AGE,
+        "HISPANIC": HISPANIC,
+    }.get(demographic.upper(), {})
 
 
 @st.cache_resource
-def get_map(var, year1, year2):
+def get_map(var: str, year1: int, year2: int):
+    """
+    Return a Plotly choropleth map with a diverging color scale:
+    red/orange for counties with negative percent change,
+    yellow at zero, blue for positive.
+    """
     df = be.get_ranking_df(var, year1, year2, True)
 
-    # Because we are showing percent change, it helps to use a divergent scale
-    # and fix the middle color at 0. Plotly can do this for us, but by default
-    # it does so in a way that forces an equal number of values on each side of
-    # 0. This is a problem because our distributions are rarely symmetric around
-    # 0. For example, when doing population percent change the min is -10.2 and
-    # the max is 36.4. This means that using the defaults with plotly there will
-    # be a lot of "red" on the legend that simply never appears on the map. This
-    # will confuse people. This code uses a divergent scale (blue is positive,
-    # yellow is 0, red is negative) and always pins yellow at 0. Actually using
-    # the app myself, I find this to make the map feature most useful: it
-    # highlights outliers and values around 0.
-    cmin = df["Percent Change"].min()  # -10.2
-    cmax = df["Percent Change"].max()  # 36.4
-    zero_norm = abs(cmin) / (cmax - cmin)  # Determine normalized position for 0
+    cmin = df["Percent Change"].min()
+    cmax = df["Percent Change"].max()
+    span = cmax - cmin if (cmax - cmin) != 0 else 1
+    zero_norm = abs(cmin) / span
+
     colorscale = [
-        [0.0, "#d95f02"],  # Orange at the minimum (-10.2)
-        [zero_norm, "#ffffbf"],  # Yellow exactly at 0
-        [1.0, "#1b5eab"],  # Blue at the maximum (36.4)
+        [0.0, NEG_COLOR],
+        [zero_norm, ZERO_COLOR],
+        [1.0, POS_COLOR],
     ]
 
     fig = px.choropleth(
@@ -41,142 +57,127 @@ def get_map(var, year1, year2):
         scope="usa",
         hover_name="Full Name",
         hover_data={"FIPS": False, "Percent Change": True},
-        labels={"Percent Change": "Percent Change", "FIPS": "NAME"},
+        labels={"Percent Change": "Percent Change", "FIPS": "County"}
     )
 
-    # Force ticks to show min, 0 and max as labels.
     fig.update_layout(
         title_text=f"Percent Change of {var} between {year1} and {year2}",
         coloraxis_colorbar=dict(
             title="Percent Change",
             tickmode="array",
             tickvals=[cmin, 0, cmax],
-            ticktext=[f"{cmin:.1f}", "0", f"{cmax:.1f}"],
-        ),
+            ticktext=[f"{cmin:.1f}", "0", f"{cmax:.1f}"]
+        )
     )
 
     return fig
 
 
 @st.cache_resource
-def get_line_graph(full_name, var):
+def get_line_graph(full_name: str, var: str):
+    """
+    Return a matplotlib line plot of `var` over time for `full_name`,
+    with year labels rotated to avoid overlap, and colored markers indicating trend.
+    """
     df = be.get_census_data(full_name, var, True)
     df["Year"] = df["Year"].astype(int)
+    df = df.sort_values("Year")
 
-    # Create the figure and axis
-    fig, ax = plt.subplots()
+    # Compute percent change relative to previous year
+    df["Pct_Change"] = df[var].pct_change() * 100.0
 
-    # Define colors for consistency
-    pre_covid_color = "black"
-    post_covid_color = "#FF4500"  # Same saturated orange-red as in the swarm plot
-    missing_color = "gray"
+    fig, ax = plt.subplots(figsize=(8, 4))
 
-    # Assign dataset categories
-    df["Period"] = df["Year"].apply(
-        lambda x: "Pre-Covid" if x <= 2019 else "Post-Covid" if x >= 2021 else "Missing"
-    )
+    # Plot baseline line
+    ax.plot(df["Year"], df[var], color="dimgray", marker="o")
 
-    # Plot the data using seaborn with the updated colors
-    sns.lineplot(
-        data=df[df["Year"] <= 2019],
-        x="Year",
-        y=var,
-        ax=ax,
-        marker="o",
-        color=pre_covid_color,
-        label="Pre-Covid",
-    )
-    sns.lineplot(
-        data=df[df["Year"] >= 2021],
-        x="Year",
-        y=var,
-        ax=ax,
-        marker="o",
-        color=post_covid_color,
-        label="Post-Covid",
-    )
+    # Overlay colored markers
+    for i in range(1, len(df)):
+        x = df.iloc[i]["Year"]
+        y = df.iloc[i][var]
+        pct = df.iloc[i]["Pct_Change"]
+        if pct < 0:
+            col = NEG_COLOR
+        elif pct > 0:
+            col = POS_COLOR
+        else:
+            col = ZERO_COLOR
+        ax.scatter([x], [y], color=col, s=80, zorder=5)
 
-    # Handle missing 2020 connection (gray dashed line)
-    if 2019 in df["Year"].values and 2021 in df["Year"].values:
-        value_2019 = df.loc[df["Year"] == 2019, var].values[0]
-        value_2021 = df.loc[df["Year"] == 2021, var].values[0]
-        ax.plot([2019, 2021], [value_2019, value_2021], "--", color=missing_color)
+    # If missing 2020, connect 2019 → 2021 with dashed line
+    if (2019 in df["Year"].values) and (2021 in df["Year"].values):
+        v19 = df.loc[df["Year"] == 2019, var].values[0]
+        v21 = df.loc[df["Year"] == 2021, var].values[0]
+        ax.plot([2019, 2021], [v19, v21], linestyle="--", color="gray")
 
-    # Set custom x-axis labels
-    selected_years = [2005, 2010, 2015, 2020]
-    ax.set_xticks(selected_years)
-    ax.set_xticklabels(selected_years)
+    # Set x‐ticks at each year and rotate labels
+    years = sorted(df["Year"].unique())
+    ax.set_xticks(years)
+    ax.tick_params(axis="x", labelrotation=45)
 
-    # Formatting
-    ax.set_title(f"{var}\n{full_name}")
-    ax.legend()
-
-    # Apply comma formatting to y-axis
+    ax.set_xlabel("Year")
+    ax.set_title(f"{var} in {full_name}")
     ax.yaxis.set_major_formatter(ticker.StrMethodFormatter("{x:,.0f}"))
 
+    fig.tight_layout()
     return fig
 
 
-def get_swarm_dot_size(var):
-    """Due to the size of the dataset, the swarm plots sometimes have points that cannot be placed.
-    The solution is to reduce the size of the points, which we do here. The default size is 4.
+def get_swarm_dot_size(var: str) -> int:
+    """
+    Choose dot size in swarm plots depending on variable magnitude / overlap.
     """
     if var == "Total With Public Assistance":
         return 2
     elif var == "Total Population":
         return 3
-    return 4
+    else:
+        return 4
 
 
 @st.cache_resource
-def get_swarmplot(var, year1, year2, full_name):
+def get_swarmplot(var: str, year1: int, year2: int, full_name: str):
+    """
+    Return a seaborn swarm plot of county percent changes,
+    coloring negative (red), zero (yellow), positive (blue),
+    and highlighting the selected county.
+    """
     df = be.get_ranking_df(var, year1, year2, False)
 
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(6, 4))
 
-    # Define colors for better contrast
-    normal_color = "black"
-    normal_alpha = 0.3  # Lower alpha for background points
-    highlight_color = "#FF4500"  # More saturated orange-red for emphasis
+    df_neg = df[df["Percent Change"] < 0]
+    df_zero = df[df["Percent Change"] == 0]
+    df_pos = df[df["Percent Change"] > 0]
 
-    # Identify the selected county
-    df_black = df[df["Full Name"] != full_name]
-    df_highlight = df[df["Full Name"] == full_name]
-
-    # Adjust marker size to reduce placement issues
     size = get_swarm_dot_size(var)
 
-    # Plot swarm plot with adjusted alpha for non-highlighted counties
-    sns.swarmplot(
-        x=df_black["Percent Change"],
-        color=normal_color,
-        size=size,
-        alpha=normal_alpha,
-        ax=ax,
-    )
+    if not df_neg.empty:
+        sns.swarmplot(x=df_neg["Percent Change"], color=NEG_COLOR, size=size, ax=ax)
+    if not df_zero.empty:
+        sns.swarmplot(x=df_zero["Percent Change"], color=ZERO_COLOR, size=size, ax=ax)
+    if not df_pos.empty:
+        sns.swarmplot(x=df_pos["Percent Change"], color=POS_COLOR, size=size, ax=ax)
 
-    # If the highlighted county exists, plot it separately with enhanced visibility
-    if not df_highlight.empty:
-        sns.swarmplot(
-            x=df_highlight["Percent Change"], color=highlight_color, size=8, ax=ax
-        )  # Larger size and vivid color
-
-        # Manually set the legend with the correct color
-        legend_patch = plt.Line2D(
-            [0],
-            [0],
+    # Highlight selected county
+    df_high = df[df["Full Name"] == full_name]
+    if not df_high.empty:
+        pc = df_high["Percent Change"].values[0]
+        col = NEG_COLOR if pc < 0 else (POS_COLOR if pc > 0 else ZERO_COLOR)
+        sns.swarmplot(x=df_high["Percent Change"], color=col, size=size * 2, ax=ax)
+        legend_line = plt.Line2D(
+            [0], [0],
             marker="o",
-            color=highlight_color,
-            markersize=8,
-            label=full_name,
+            color=col,
             linestyle="None",
+            markersize=8,
+            label=full_name
         )
-        ax.legend(handles=[legend_patch])  # Only add legend if the county exists
+        ax.legend(handles=[legend_line])
 
-    ax.set_title(f"Percent Change of {var}\nAll Counties, {year1} to {year2}")
+    ax.set_title(f"Percent Change of {var}\n{year1} to {year2}")
     ax.set_xlabel("Percent Change")
+    ax.xaxis.set_major_formatter(ticker.StrMethodFormatter("{x:,.1f}"))
 
-    # Apply comma formatting to the x-axis
-    ax.xaxis.set_major_formatter(ticker.StrMethodFormatter("{x:,.0f}"))
-
+    fig.tight_layout()
     return fig

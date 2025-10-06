@@ -1,17 +1,33 @@
-SEX = {"Male": "#1f77b4", "Female": "#d62728"}
+# colors.py
+# Clean, accessible color palette for demographic categories
 
-RACE = {
-    "White": "#8c564b",
-    "Black or African American": "#2ca02c",
-    "Asian": "#9467bd",
-    "American Indian and Alaska Native": "#bcbd22",
-    "Native Hawaiian and Other Pacific Islander": "#17becf",
-    "Some Other Race": "#7f7f7f",
-    "Two or More Races": "#e377c2",
+# Gender
+SEX = {
+    "Male": "#1F77B4",       # Calm blue
+    "Female": "#E15759"      # Warm coral red
 }
 
-AGE = {"<18": "#1f77b4", "18–34": "#ff7f0e", "35–64": "#2ca02c", "65+": "#9467bd"}
+# Race and Ethnicity
+RACE = {
+    "White": "#A6CEE3",                           # Soft blue
+    "Black or African American": "#1F78B4",       # Deep blue
+    "Asian": "#33A02C",                           # Balanced green
+    "American Indian and Alaska Native": "#B2DF8A",  # Light green
+    "Native Hawaiian and Other Pacific Islander": "#6A3D9A",  # Purple
+    "Some Other Race": "#FB9A99",                 # Light red
+    "Two or More Races": "#FF7F00"                # Orange
+}
+
+# Age Groups
+AGE = {
+    "<18": "#8DD3C7",        # Teal
+    "18-34": "#FFFFB3",      # Soft yellow
+    "35-64": "#BEBADA",      # Lavender
+    "65+": "#FB8072"         # Warm coral
+}
+
+# Hispanic Origin
 HISPANIC = {
-    "Hispanic or Latino": "#ff7f0e",
-    "Not Hispanic or Latino": "#7f7f7f",
+    "Hispanic or Latino": "#FDB462",              # Golden orange
+    "Not Hispanic or Latino": "#B3DE69"           # Fresh green
 }
